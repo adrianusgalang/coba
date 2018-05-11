@@ -1,0 +1,67 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: tanyateguh-production
+spec:
+  replicas: 1
+  revisionHistoryLimit: 0
+  template:
+    metadata:
+      labels:
+        app: tanyateguh
+        env: production
+    spec:
+      imagePullSecrets:
+        - name: blregistry
+      containers:
+        - name: tanyateguh
+          image: $TANYATEGUH_REPOSITORY:$TANYATEGUH_VERSION
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 30
+            timeoutSeconds: 1
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 1Gi
+              cpu: 4
+          command:
+            - envconsul
+            - -prefix=tanyateguh/
+            - bin/hubot
+            - --adapter
+            - slack
+        - name: consul-image
+          image: registry.bukalapak.io/bukalapak/consul-image:0.0.10
+          env:
+            - name: SERVICE_NAME
+              value: tanyateguh
+            - name: SERVICE_ENVIRONMENT
+              value: production
+            - name: SERVICE_PORT
+              value: "8080"
+          ports:
+            - containerPort: 8300
+            - containerPort: 8301
+            - containerPort: 8302
+            - containerPort: 8400
+            - containerPort: 8500
+            - containerPort: 8600
+          command:
+            - /bin/entrypoint
+            - agent
+            - -config-dir=/config
+            - -join=172.16.88.10:8301
+            - -join=172.16.88.11:8301
+            - -join=172.16.88.12:8301
+            - -encrypt=EjEYORElyAOZ9LMke8mqrQ==
+      nodeSelector:
+        env: production
